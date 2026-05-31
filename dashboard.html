@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Factory Downtime Logger</title>
+    <style>
+        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; }
+        h1 { text-align: center; }
+        .loss-card { background: #d63031; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
+        .loss-amount { font-size: 48px; font-weight: bold; }
+        .machines-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .machine { background: #16213e; padding: 15px; border-radius: 10px; text-align: center; }
+        .machine.stopped { border: 2px solid #d63031; background: #1a0a0a; }
+        .machine.running { border: 2px solid #00b894; }
+        .status { font-size: 20px; margin: 10px 0; }
+        .running .status { color: #00b894; }
+        .stopped .status { color: #d63031; }
+        .cause { color: #ff7675; font-size: 14px; }
+        .loss-small { color: #ff7675; font-size: 12px; margin-top: 5px; }
+        .footer { text-align: center; margin-top: 20px; color: #666; }
+        .refresh-btn { background: #00b894; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
+        .refresh-btn:hover { background: #00a382; }
+        .reset-btn { background: #d63031; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-bottom: 20px; margin-left: 10px; }
+        .reset-btn:hover { background: #b52b2b; }
+        .whatsapp-status { background: #25D366; color: black; padding: 10px; border-radius: 5px; margin-bottom: 20px; text-align: center; }
+        .buttons { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🏭 Factory Downtime Tracker</h1>
+    
+    <div class="whatsapp-status">
+        📱 WhatsApp Integration ACTIVE - Workers can send voice notes
+    </div>
+    
+    <div class="loss-card">
+        <div>💰 TODAY'S TOTAL LOSS</div>
+        <div class="loss-amount" id="totalLoss">₹0</div>
+    </div>
+    
+    <div class="buttons">
+        <button class="refresh-btn" onclick="refreshData()">🔄 Refresh Now</button>
+        <button class="reset-btn" onclick="resetMachines()">🗑️ Reset All Machines</button>
+    </div>
+    
+    <div class="machines-grid" id="machinesGrid">
+        <!-- Machines will appear here -->
+    </div>
+    
+    <div class="footer">
+        Last updated: <span id="timestamp"></span>
+    </div>
+
+    <script>
+        // Machine data with hourly costs
+        let machines = [
+            { id: 1, name: "CNC Machine", status: "running", cause: null, hourlyCost: 8000 },
+            { id: 2, name: "Lathe Machine", status: "running", cause: null, hourlyCost: 6000 },
+            { id: 3, name: "Grinder", status: "running", cause: null, hourlyCost: 4000 }
+        ];
+        
+        // Calculate loss for a stopped machine
+        function calculateLoss(machine) {
+            if (machine.status !== "stopped") return 0;
+            return machine.hourlyCost;
+        }
+        
+        // Calculate total loss
+        function calculateTotalLoss() {
+            let total = 0;
+            machines.forEach(machine => {
+                total += calculateLoss(machine);
+            });
+            return total;
+        }
+        
+        // Update the dashboard
+        function updateDashboard() {
+            const grid = document.getElementById('machinesGrid');
+            const totalLoss = calculateTotalLoss();
+            
+            document.getElementById('totalLoss').innerHTML = `₹${totalLoss.toLocaleString()}`;
+            document.getElementById('timestamp').innerHTML = new Date().toLocaleTimeString();
+            
+            let html = '';
+            machines.forEach(machine => {
+                const statusClass = machine.status;
+                const statusIcon = machine.status === 'running' ? '🟢' : '🔴';
+                const statusText = machine.status === 'running' ? 'RUNNING' : 'STOPPED';
+                let lossHtml = '';
+                let causeHtml = '';
+                
+                if (machine.status === 'stopped') {
+                    causeHtml = `<div class="cause">⚠️ Cause: ${machine.cause}</div>`;
+                    lossHtml = `<div class="loss-small">💰 Loss: ₹${machine.hourlyCost.toLocaleString()}/hour</div>`;
+                }
+                
+                html += `
+                    <div class="machine ${statusClass}">
+                        <div><strong>${machine.name}</strong></div>
+                        <div class="status">${statusIcon} ${statusText}</div>
+                        ${causeHtml}
+                        ${lossHtml}
+                    </div>
+                `;
+            });
+            
+            grid.innerHTML = html;
+        }
+        
+        function refreshData() {
+            loadWhatsAppEvents();
+            updateDashboard();
+        }
+        
+        // Reset all machines to running
+        function resetMachines() {
+            fetch('/reset')
+                .then(() => {
+                    // Reset local machine data
+                    machines.forEach(m => {
+                        m.status = "running";
+                        m.cause = null;
+                    });
+                    updateDashboard();
+                })
+                .catch(err => console.log("Reset error:", err));
+        }
+        
+        // Load downtime events from server
+        function loadWhatsAppEvents() {
+            fetch('/get_events')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.events && data.events.length > 0) {
+                        // Reset all machines to running
+                        machines.forEach(m => {
+                            m.status = "running";
+                            m.cause = null;
+                        });
+                        
+                        // Update machines that have downtime events
+                        data.events.forEach(event => {
+                            const machineNum = parseInt(event.machine);
+                            const machine = machines.find(m => m.id === machineNum);
+                            if (machine) {
+                                machine.status = "stopped";
+                                machine.cause = event.cause;
+                            }
+                        });
+                        
+                        updateDashboard();
+                    }
+                })
+                .catch(err => console.log("Server not running:", err));
+        }
+        
+        // Initial load
+        updateDashboard();
+        
+        // Check WhatsApp every 5 seconds
+        setInterval(loadWhatsAppEvents, 5000);
+        
+        // Load immediately
+        loadWhatsAppEvents();
+    </script>
+</body>
+</html>

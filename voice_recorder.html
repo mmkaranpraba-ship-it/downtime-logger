@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Downtime Reporter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .btn {
+            background: #d63031;
+            color: white;
+            border: none;
+            padding: 20px 40px;
+            font-size: 24px;
+            border-radius: 50px;
+            margin: 20px;
+            cursor: pointer;
+        }
+        .btn.listening {
+            background: #00b894;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .result {
+            background: #0f3460;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px;
+            font-size: 18px;
+        }
+        textarea {
+            width: 90%;
+            padding: 10px;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button {
+            background: #00b894;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .status {
+            margin: 10px;
+            font-size: 14px;
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎙️ Report Machine Issue</h1>
+    <button class="btn" id="recordBtn">🎤 Tap to Speak</button>
+    <div class="status" id="status">Ready</div>
+    <div class="result" id="result"></div>
+
+    <script>
+        const recordBtn = document.getElementById('recordBtn');
+        const statusDiv = document.getElementById('status');
+        const resultDiv = document.getElementById('result');
+        
+        let recognition = null;
+        
+        // Check if browser supports Speech Recognition
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        
+        if (!SpeechRecognition) {
+            statusDiv.innerHTML = '❌ Your browser does not support speech recognition. Use Chrome or Edge.';
+            recordBtn.disabled = true;
+        } else {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-IN';  // Hindi + English mix
+            
+            recognition.onstart = function() {
+                recordBtn.classList.add('listening');
+                recordBtn.innerHTML = '🔴 Listening... Tap to Stop';
+                statusDiv.innerHTML = '🎙️ Speak now... Say machine number and problem';
+                resultDiv.innerHTML = '';
+            };
+            
+            recognition.onend = function() {
+                recordBtn.classList.remove('listening');
+                recordBtn.innerHTML = '🎤 Tap to Speak';
+                statusDiv.innerHTML = 'Processing...';
+            };
+            
+            recognition.onresult = function(event) {
+                const text = event.results[0][0].transcript;
+                statusDiv.innerHTML = '📝 You said: "' + text + '"';
+                resultDiv.innerHTML = `
+                    <strong>Review:</strong><br>
+                    <textarea id="reportText" rows="2">${text}</textarea><br>
+                    <button onclick="submitReport()">✅ Submit</button>
+                    <button onclick="resetForm()">🔄 Try Again</button>
+                `;
+            };
+            
+            recognition.onerror = function(event) {
+                statusDiv.innerHTML = '❌ Error: ' + event.error;
+                recordBtn.classList.remove('listening');
+                recordBtn.innerHTML = '🎤 Tap to Speak';
+            };
+        }
+        
+        recordBtn.addEventListener('click', () => {
+            if (recognition) {
+                try {
+                    recognition.start();
+                } catch(e) {
+                    statusDiv.innerHTML = '❌ Already listening or error. Refresh and try again.';
+                }
+            }
+        });
+        
+        function submitReport() {
+            const textarea = document.getElementById('reportText');
+            const message = textarea.value.trim();
+            if (!message) {
+                statusDiv.innerHTML = '❌ Please enter or speak a message';
+                return;
+            }
+            
+            statusDiv.innerHTML = '📤 Sending...';
+            
+            fetch('/whatsapp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'Body=' + encodeURIComponent(message)
+            })
+            .then(res => res.text())
+            .then(data => {
+                statusDiv.innerHTML = '✅ Sent! Dashboard will update.';
+                resultDiv.innerHTML = '<strong>✅ Reported successfully!</strong><br>Machine issue logged.';
+                setTimeout(() => {
+                    resultDiv.innerHTML = '';
+                    statusDiv.innerHTML = 'Ready for next report';
+                }, 3000);
+            })
+            .catch(err => {
+                statusDiv.innerHTML = '❌ Error connecting to server. Make sure server is running.';
+                resultDiv.innerHTML = '<strong>❌ Failed to send.</strong><br>Server not responding.';
+            });
+        }
+        
+        function resetForm() {
+            resultDiv.innerHTML = '';
+            statusDiv.innerHTML = 'Ready. Tap the button to speak again.';
+        }
+    </script>
+</body>
+</html>
