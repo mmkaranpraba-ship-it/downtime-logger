@@ -120,7 +120,7 @@
         <span class="example" onclick="setExample('Lathe machine motor problem')">🔩 Lathe: motor problem</span>
         <span class="example" onclick="setExample('Grinder bearing failed')">🛠️ Grinder: bearing failed</span>
     </div>
-    <div class="footer-note">💡 Speak clearly. Maximum 30 seconds – tap SPEAK again to stop early. You can edit text before submitting.</div>
+    <div class="footer-note">💡 Tap SPEAK, allow microphone, then speak clearly. Maximum 30 seconds – tap again to stop. If voice doesn't work, type manually.</div>
 </div>
 
 <script>
@@ -131,80 +131,124 @@
     const statusMsg = document.getElementById('statusMsg');
     
     let recognition = null;
+    let listening = false;
     let timeoutId = null;
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
+    // Function to stop recognition and clean up
     function stopRecognition() {
-        if (recognition && (recognition as any).isRecognizing) {
-            recognition.stop();
+        if (recognition) {
+            try {
+                recognition.abort();
+            } catch(e) {}
+            recognition = null;
         }
         if (timeoutId) {
             clearTimeout(timeoutId);
             timeoutId = null;
         }
+        listening = false;
+        speakBtn.disabled = false;
+        speakBtn.innerText = '🎤 SPEAK';
     }
     
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-IN';
+    // Initialize recognition (called each time to ensure fresh state)
+    function initRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            statusMsg.innerHTML = '❌ Your browser does not support speech recognition. Please type your report.';
+            speakBtn.disabled = true;
+            return null;
+        }
         
-        recognition.onstart = () => {
-            (recognition as any).isRecognizing = true;
-            statusMsg.innerHTML = '🎙️ LISTENING... (max 30 sec)';
+        const recog = new SpeechRecognition();
+        recog.continuous = false;
+        recog.interimResults = false;
+        recog.lang = 'en';  // 'en' is more universally supported than 'en-IN'
+        
+        recog.onstart = () => {
+            listening = true;
+            statusMsg.innerHTML = '🎙️ Listening... (max 30 sec)';
             speakBtn.disabled = true;
             speakBtn.innerText = '🎤 LISTENING...';
             timeoutId = setTimeout(() => {
-                if (recognition && (recognition as any).isRecognizing) {
-                    recognition.stop();
-                    statusMsg.innerHTML = '⏱️ 30 seconds over. Please tap SPEAK again if needed.';
+                if (listening) {
+                    stopRecognition();
+                    statusMsg.innerHTML = '⏱️ 30 seconds over. Tap SPEAK again if needed.';
                 }
             }, 30000);
         };
-        recognition.onend = () => {
-            (recognition as any).isRecognizing = false;
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-                timeoutId = null;
-            }
-            speakBtn.disabled = false;
-            speakBtn.innerText = '🎤 SPEAK';
-            if (!reportText.value.trim()) {
-                statusMsg.innerHTML = '📢 No speech detected. Tap SPEAK and speak clearly.';
-            } else {
-                statusMsg.innerHTML = '✅ Text ready. You can edit above, then click SUBMIT.';
+        
+        recog.onend = () => {
+            if (listening) {
+                // Recognition ended naturally
+                stopRecognition();
+                if (!reportText.value.trim()) {
+                    statusMsg.innerHTML = '📢 No speech detected. Tap SPEAK and speak clearly, or type manually.';
+                } else {
+                    statusMsg.innerHTML = '✅ Text ready. You can edit above, then click SUBMIT.';
+                }
             }
         };
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            reportText.value = text;
+        
+        recog.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            reportText.value = transcript;
             statusMsg.innerHTML = '✅ Text filled. You can edit above, then click SUBMIT.';
-            stopRecognition();
-        };
-        recognition.onerror = (event) => {
-            statusMsg.innerHTML = '❌ Speech error: ' + event.error + '. Type manually instead.';
+            // Stop recognition immediately after result
+            if (recognition) {
+                try {
+                    recognition.stop();
+                } catch(e) {}
+            }
             stopRecognition();
         };
         
-        speakBtn.addEventListener('click', () => {
-            if (recognition) {
-                try {
-                    if ((recognition as any).isRecognizing) {
-                        recognition.stop();
-                    } else {
-                        recognition.start();
-                    }
-                } catch(e) {
-                    statusMsg.innerHTML = '❌ Error starting speech. Refresh and try again.';
-                }
+        recog.onerror = (event) => {
+            console.error("Speech error:", event.error);
+            let msg = '';
+            if (event.error === 'not-allowed') {
+                msg = '❌ Microphone permission denied. Please allow microphone in browser settings.';
+            } else if (event.error === 'no-speech') {
+                msg = '❌ No speech detected. Tap SPEAK and speak clearly.';
+            } else {
+                msg = '❌ Speech error: ' + event.error + '. Please type manually.';
             }
-        });
-    } else {
-        speakBtn.disabled = true;
-        speakBtn.innerText = '🎤 Speech not supported';
-        statusMsg.innerHTML = 'Your browser does not support voice input. Please type your report.';
+            statusMsg.innerHTML = msg;
+            stopRecognition();
+        };
+        
+        return recog;
     }
+    
+    speakBtn.addEventListener('click', async () => {
+        // If already listening, stop
+        if (listening) {
+            stopRecognition();
+            statusMsg.innerHTML = '📢 Stopped. You can type or tap SPEAK again.';
+            return;
+        }
+        
+        // Request microphone permission explicitly (helps with some browsers)
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Permission granted, stop the stream immediately (we only need permission)
+            stream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+            statusMsg.innerHTML = '❌ Microphone access denied. Please allow microphone and refresh.';
+            return;
+        }
+        
+        // Initialize a new recognition instance
+        recognition = initRecognition();
+        if (!recognition) return;
+        
+        try {
+            recognition.start();
+        } catch (e) {
+            statusMsg.innerHTML = '❌ Error starting speech. Try refreshing the page.';
+            console.error(e);
+        }
+    });
     
     function setExample(text) {
         reportText.value = text;
