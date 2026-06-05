@@ -3,41 +3,153 @@
 <head>
     <title>Factory Downtime Tracker</title>
     <style>
-        body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; }
-        .branding { text-align: center; font-size: 14px; color: #aaa; margin-bottom: 10px; }
-        h1 { text-align: center; margin: 0; }
-        .loss-card { background: #d63031; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
-        .loss-amount { font-size: 48px; font-weight: bold; }
-        .machines-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
-        .machine { background: #16213e; padding: 15px; border-radius: 10px; text-align: center; }
-        .machine.stopped { border: 2px solid #d63031; background: #1a0a0a; }
-        .machine.running { border: 2px solid #00b894; }
-        .status { font-size: 20px; margin: 10px 0; }
-        .running .status { color: #00b894; }
-        .stopped .status { color: #d63031; }
-        .cause { color: #ff7675; font-size: 14px; }
-        .timestamp { color: #f39c12; font-size: 12px; margin-top: 5px; }
-        .loss-small { color: #ff7675; font-size: 12px; margin-top: 5px; }
-        .footer { text-align: center; margin-top: 20px; color: #666; }
-        .reset-btn { background: #d63031; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
-        .reset-btn:hover { background: #b52b2b; }
-        .status-badge { background: #25D366; color: black; padding: 10px; border-radius: 5px; margin-bottom: 20px; text-align: center; font-weight: bold; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1E3A8A;  /* Royal blue */
+            color: white;
+            padding: 20px;
+        }
+        .branding {
+            text-align: center;
+            font-size: 26px;
+            font-weight: 900;
+            font-family: 'Poppins', 'Arial Black', 'Segoe UI Black', sans-serif;
+            color: #FFD700;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px rgba(255,215,0,0.5);
+        }
+        h1 {
+            text-align: center;
+            font-size: 38px;
+            margin: 0 0 10px 0;
+        }
+        .status-badge {
+            background: #e67e22;
+            color: black;
+            padding: 12px;
+            border-radius: 40px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .loss-card {
+            background: #d63031;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+        .loss-amount {
+            font-size: 56px;
+            font-weight: bold;
+        }
+        .global-reset-btn {
+            background: #d63031;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-bottom: 25px;
+            width: auto;
+            display: inline-block;
+        }
+        .machines-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 10px;
+        }
+        .machine {
+            background: #0f2b5e;  /* Slightly darker royal blue for cards */
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            transition: 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .machine.stopped {
+            border: 3px solid #d63031;
+            background: #2c1a1a;
+        }
+        .machine.running {
+            border: 3px solid #00b894;
+        }
+        .machine strong {
+            font-size: 26px;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .status {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 12px 0;
+        }
+        .running .status { color: #00e6b8; }
+        .stopped .status { color: #ff7675; }
+        .cause {
+            font-size: 18px;
+            color: #ffaa88;
+            margin: 8px 0;
+        }
+        .timestamp {
+            font-size: 16px;
+            color: #f39c12;
+            margin: 5px 0;
+        }
+        .loss-small {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff7675;
+            margin-top: 8px;
+        }
+        .machine-reset-btn {
+            background: #ffaa33;
+            color: #1a1a2e;
+            border: none;
+            padding: 10px 12px;
+            margin-top: 15px;
+            border-radius: 40px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: 0.2s;
+        }
+        .machine-reset-btn:active {
+            transform: scale(0.96);
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 16px;
+            color: #ddd;
+        }
     </style>
 </head>
 <body>
-    <div class="branding">M.M.Consultant</div>
-    <h1>🏭 Factory Downtime Tracker</h1>
+    <div class="branding">🔧 M.M.Consultant</div>
+    <h1>🏭 FACTORY DOWNTIME TRACKER</h1>
     
     <div class="status-badge">
-        📡 Live updates every 3 seconds | Speak machine name or number
+        📡 LIVE UPDATES EVERY 3 SECONDS | SPEAK MACHINE NAME OR NUMBER
     </div>
     
     <div class="loss-card">
-        <div>💰 TODAY'S TOTAL LOSS</div>
+        <div style="font-size: 22px;">💰 TODAY'S TOTAL LOSS</div>
         <div class="loss-amount" id="totalLoss">₹0</div>
     </div>
     
-    <button class="reset-btn" onclick="resetMachines()">🗑️ Reset All Machines</button>
+    <div style="text-align: center;">
+        <button class="global-reset-btn" onclick="resetAllMachines()">🗑️ RESET ALL MACHINES</button>
+    </div>
     
     <div class="machines-grid" id="machinesGrid"></div>
     
@@ -54,9 +166,7 @@
         
         function calculateTotalLoss() {
             let total = 0;
-            machines.forEach(m => {
-                if (m.status === "stopped") total += m.hourlyCost;
-            });
+            machines.forEach(m => { if (m.status === "stopped") total += m.hourlyCost; });
             return total;
         }
         
@@ -73,26 +183,29 @@
                 const statusText = m.status === 'running' ? 'RUNNING' : 'STOPPED';
                 let causeHtml = '', lossHtml = '', timeHtml = '';
                 if (m.status === 'stopped') {
-                    causeHtml = `<div class="cause">⚠️ Cause: ${m.cause}</div>`;
-                    lossHtml = `<div class="loss-small">💰 Loss: ₹${m.hourlyCost.toLocaleString()}/hour</div>`;
+                    causeHtml = `<div class="cause">⚠️ CAUSE: ${m.cause}</div>`;
+                    lossHtml = `<div class="loss-small">💰 LOSS: ₹${m.hourlyCost.toLocaleString()}/hour</div>`;
                     if (m.reportedAt) {
-                        timeHtml = `<div class="timestamp">🕒 Reported at: ${m.reportedAt}</div>`;
+                        timeHtml = `<div class="timestamp">🕒 REPORTED AT: ${m.reportedAt}</div>`;
                     }
                 }
                 html += `
                     <div class="machine ${statusClass}">
-                        <div><strong>${m.displayName}</strong></div>
-                        <div class="status">${statusIcon} ${statusText}</div>
-                        ${causeHtml}
-                        ${timeHtml}
-                        ${lossHtml}
+                        <div>
+                            <strong>${m.displayName}</strong>
+                            <div class="status">${statusIcon} ${statusText}</div>
+                            ${causeHtml}
+                            ${timeHtml}
+                            ${lossHtml}
+                        </div>
+                        <button class="machine-reset-btn" onclick="resetMachine('${m.displayName}')">🔧 RESET ${m.displayName.toUpperCase()}</button>
                     </div>
                 `;
             });
             grid.innerHTML = html;
         }
         
-        function resetMachines() {
+        function resetAllMachines() {
             fetch('/reset')
                 .then(() => {
                     machines.forEach(m => {
@@ -103,6 +216,25 @@
                     updateDashboard();
                 })
                 .catch(err => console.log("Reset error:", err));
+        }
+        
+        function resetMachine(machineName) {
+            fetch('/reset_machine', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ machine: machineName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const machine = machines.find(m => m.displayName === machineName);
+                if (machine) {
+                    machine.status = "running";
+                    machine.cause = null;
+                    machine.reportedAt = null;
+                }
+                updateDashboard();
+            })
+            .catch(err => console.log("Reset machine error:", err));
         }
         
         function loadDowntimeEvents() {
