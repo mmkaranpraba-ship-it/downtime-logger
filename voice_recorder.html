@@ -1,164 +1,257 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Downtime Reporter</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopfloor Reporter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <style>
+        * { box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
-            background: #1a1a2e;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             color: white;
+            min-height: 100vh;
+            margin: 0;
             padding: 20px;
-            text-align: center;
         }
-        .btn {
+        .container { max-width: 600px; margin: 0 auto; }
+        .branding { text-align: center; font-size: 14px; color: #aaa; margin-bottom: 10px; }
+        h1 { text-align: center; font-size: 1.8rem; margin-bottom: 5px; }
+        .sub { text-align: center; color: #aaa; margin-bottom: 30px; font-size: 0.9rem; }
+        .record-btn {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
             background: #d63031;
-            color: white;
             border: none;
-            padding: 20px 40px;
-            font-size: 24px;
-            border-radius: 50px;
-            margin: 20px;
             cursor: pointer;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 0 20px rgba(214, 48, 49, 0.5);
+            transition: transform 0.2s;
         }
-        .btn.listening {
+        .record-btn.recording {
             background: #00b894;
-            animation: pulse 1s infinite;
+            animation: pulse 1.5s infinite;
         }
         @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.05); }
             100% { transform: scale(1); }
         }
-        .result {
-            background: #0f3460;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px;
-            font-size: 18px;
+        .record-btn:active { transform: scale(0.95); }
+        .btn-text { text-align: center; font-size: 1.2rem; font-weight: bold; margin-top: 10px; }
+        .status-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
         }
-        textarea {
-            width: 90%;
-            padding: 10px;
-            font-size: 16px;
-            margin: 10px;
+        .examples {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .examples h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: #aaa; }
+        .example-btn {
+            background: #2c3e50;
+            padding: 8px 12px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: inline-block;
+        }
+        .result-card {
+            background: #0f3460;
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 20px;
+            display: none;
+        }
+        .result-card.show { display: block; }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border: none;
+            font-size: 1rem;
         }
         button {
             background: #00b894;
             color: white;
             border: none;
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
+            padding: 12px;
+            border-radius: 10px;
+            width: 100%;
+            font-size: 1rem;
             cursor: pointer;
+            margin-top: 5px;
         }
-        .status {
-            margin: 10px;
-            font-size: 14px;
+        .success { background: #00b894; }
+        .warning { background: #d63031; }
+        .instructions {
+            font-size: 0.8rem;
             color: #aaa;
+            text-align: center;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>🎙️ Report Machine Issue</h1>
-    <button class="btn" id="recordBtn">🎤 Tap to Speak</button>
-    <div class="status" id="status">Ready</div>
-    <div class="result" id="result"></div>
+<div class="branding">M.M.Consultant</div>
+<div class="container">
+    <h1>🎙️ Shopfloor Machine Reporter</h1>
+    <div class="sub">Tap and speak to report machine issues</div>
+    
+    <button class="record-btn" id="recordBtn">
+        <svg width="70" height="70" viewBox="0 0 24 24" fill="white" style="margin-top: 45px;">
+            <circle cx="12" cy="12" r="8" fill="white"/>
+        </svg>
+    </button>
+    <div class="btn-text" id="btnText">Tap to Speak</div>
+    
+    <div class="status-card" id="statusCard">
+        <div id="statusText">📱 Ready to report machine issues</div>
+    </div>
+    
+    <div class="examples">
+        <h3>📝 Try saying:</h3>
+        <span class="example-btn" onclick="fillExample('CNC machine stopped, power failure')">CNC machine stopped, power failure</span>
+        <span class="example-btn" onclick="fillExample('Lathe machine motor problem')">Lathe machine motor problem</span>
+        <span class="example-btn" onclick="fillExample('Grinder bearing failed')">Grinder bearing failed</span>
+    </div>
+    
+    <div class="result-card" id="resultCard">
+        <div id="resultText"></div>
+    </div>
+    
+    <div class="instructions">
+        💡 Speak clearly. Say machine name or number first, then the problem.
+    </div>
+</div>
 
-    <script>
-        const recordBtn = document.getElementById('recordBtn');
-        const statusDiv = document.getElementById('status');
-        const resultDiv = document.getElementById('result');
-        
-        let recognition = null;
-        
-        // Check if browser supports Speech Recognition
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechRecognition) {
-            statusDiv.innerHTML = '❌ Your browser does not support speech recognition. Use Chrome or Edge.';
-            recordBtn.disabled = true;
+<script>
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    
+    const recordBtn = document.getElementById('recordBtn');
+    const btnText = document.getElementById('btnText');
+    const statusText = document.getElementById('statusText');
+    const resultCard = document.getElementById('resultCard');
+    const resultText = document.getElementById('resultText');
+    
+    recordBtn.addEventListener('click', async () => {
+        if (isRecording) {
+            stopRecording();
         } else {
-            recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-IN';  // Hindi + English mix
+            await startRecording();
+        }
+    });
+    
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
             
-            recognition.onstart = function() {
-                recordBtn.classList.add('listening');
-                recordBtn.innerHTML = '🔴 Listening... Tap to Stop';
-                statusDiv.innerHTML = '🎙️ Speak now... Say machine number and problem';
-                resultDiv.innerHTML = '';
+            mediaRecorder.ondataavailable = (event) => {
+                audioChunks.push(event.data);
             };
             
-            recognition.onend = function() {
-                recordBtn.classList.remove('listening');
-                recordBtn.innerHTML = '🎤 Tap to Speak';
-                statusDiv.innerHTML = 'Processing...';
+            mediaRecorder.onstop = () => {
+                stream.getTracks().forEach(track => track.stop());
+                showManualEntry();
             };
             
-            recognition.onresult = function(event) {
-                const text = event.results[0][0].transcript;
-                statusDiv.innerHTML = '📝 You said: "' + text + '"';
-                resultDiv.innerHTML = `
-                    <strong>Review:</strong><br>
-                    <textarea id="reportText" rows="2">${text}</textarea><br>
-                    <button onclick="submitReport()">✅ Submit</button>
-                    <button onclick="resetForm()">🔄 Try Again</button>
-                `;
-            };
+            mediaRecorder.start();
+            isRecording = true;
+            recordBtn.classList.add('recording');
+            btnText.innerHTML = '🔴 Recording... Tap to Stop';
+            statusText.innerHTML = '🎙️ Speak now... Say machine name/number and problem';
             
-            recognition.onerror = function(event) {
-                statusDiv.innerHTML = '❌ Error: ' + event.error;
-                recordBtn.classList.remove('listening');
-                recordBtn.innerHTML = '🎤 Tap to Speak';
-            };
+            setTimeout(() => {
+                if (isRecording) stopRecording();
+            }, 15000);
+            
+        } catch (err) {
+            statusText.innerHTML = '❌ Microphone access denied. Please allow microphone.';
+        }
+    }
+    
+    function stopRecording() {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+            recordBtn.classList.remove('recording');
+            btnText.innerHTML = 'Tap to Speak';
+            statusText.innerHTML = '⏳ Processing...';
+        }
+    }
+    
+    function showManualEntry() {
+        statusText.innerHTML = '📝 Type or correct your report below';
+        resultCard.classList.add('show');
+        resultText.innerHTML = `
+            <strong>Your report:</strong>
+            <input type="text" id="reportText" placeholder="Example: CNC machine stopped, power failure">
+            <button class="success" onclick="submitReport()">✅ Submit Report</button>
+            <button class="warning" onclick="cancelReport()">❌ Cancel</button>
+        `;
+    }
+    
+    window.fillExample = (text) => {
+        const input = document.getElementById('reportText');
+        if (input) input.value = text;
+        else {
+            resultCard.classList.add('show');
+            resultText.innerHTML = `
+                <strong>Your report:</strong>
+                <input type="text" id="reportText" value="${text}">
+                <button class="success" onclick="submitReport()">✅ Submit Report</button>
+                <button class="warning" onclick="cancelReport()">❌ Cancel</button>
+            `;
+        }
+    };
+    
+    window.submitReport = () => {
+        const input = document.getElementById('reportText');
+        const message = input ? input.value : '';
+        
+        if (!message.trim()) {
+            alert('Please enter the machine issue');
+            return;
         }
         
-        recordBtn.addEventListener('click', () => {
-            if (recognition) {
-                try {
-                    recognition.start();
-                } catch(e) {
-                    statusDiv.innerHTML = '❌ Already listening or error. Refresh and try again.';
-                }
-            }
+        statusText.innerHTML = '📤 Sending to dashboard...';
+        
+        fetch('/whatsapp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'Body=' + encodeURIComponent(message)
+        })
+        .then(res => res.text())
+        .then(data => {
+            resultText.innerHTML = `<strong>✅ Sent!</strong><br>${data}<br><br>Dashboard will update.`;
+            statusText.innerHTML = '✅ Report submitted successfully!';
+            setTimeout(() => {
+                resultCard.classList.remove('show');
+                statusText.innerHTML = '📱 Ready for next report';
+            }, 3000);
+        })
+        .catch(err => {
+            resultText.innerHTML = `<strong>❌ Error</strong><br>Server not responding. Please try again.`;
+            statusText.innerHTML = '❌ Server error';
         });
-        
-        function submitReport() {
-            const textarea = document.getElementById('reportText');
-            const message = textarea.value.trim();
-            if (!message) {
-                statusDiv.innerHTML = '❌ Please enter or speak a message';
-                return;
-            }
-            
-            statusDiv.innerHTML = '📤 Sending...';
-            
-            fetch('/whatsapp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'Body=' + encodeURIComponent(message)
-            })
-            .then(res => res.text())
-            .then(data => {
-                statusDiv.innerHTML = '✅ Sent! Dashboard will update.';
-                resultDiv.innerHTML = '<strong>✅ Reported successfully!</strong><br>Machine issue logged.';
-                setTimeout(() => {
-                    resultDiv.innerHTML = '';
-                    statusDiv.innerHTML = 'Ready for next report';
-                }, 3000);
-            })
-            .catch(err => {
-                statusDiv.innerHTML = '❌ Error connecting to server. Make sure server is running.';
-                resultDiv.innerHTML = '<strong>❌ Failed to send.</strong><br>Server not responding.';
-            });
-        }
-        
-        function resetForm() {
-            resultDiv.innerHTML = '';
-            statusDiv.innerHTML = 'Ready. Tap the button to speak again.';
-        }
-    </script>
+    };
+    
+    window.cancelReport = () => {
+        resultCard.classList.remove('show');
+        statusText.innerHTML = '📱 Ready to record. Tap the button.';
+    };
+</script>
 </body>
 </html>

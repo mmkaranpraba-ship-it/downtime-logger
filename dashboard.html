@@ -4,10 +4,11 @@
     <title>Factory Downtime Tracker</title>
     <style>
         body { font-family: Arial; background: #1a1a2e; color: white; padding: 20px; }
-        h1 { text-align: center; }
+        .branding { text-align: center; font-size: 14px; color: #aaa; margin-bottom: 10px; }
+        h1 { text-align: center; margin: 0; }
         .loss-card { background: #d63031; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
         .loss-amount { font-size: 48px; font-weight: bold; }
-        .machines-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .machines-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
         .machine { background: #16213e; padding: 15px; border-radius: 10px; text-align: center; }
         .machine.stopped { border: 2px solid #d63031; background: #1a0a0a; }
         .machine.running { border: 2px solid #00b894; }
@@ -15,14 +16,16 @@
         .running .status { color: #00b894; }
         .stopped .status { color: #d63031; }
         .cause { color: #ff7675; font-size: 14px; }
+        .timestamp { color: #f39c12; font-size: 12px; margin-top: 5px; }
         .loss-small { color: #ff7675; font-size: 12px; margin-top: 5px; }
         .footer { text-align: center; margin-top: 20px; color: #666; }
         .reset-btn { background: #d63031; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-bottom: 20px; }
         .reset-btn:hover { background: #b52b2b; }
-        .status-badge { background: #25D366; color: black; padding: 10px; border-radius: 5px; margin-bottom: 20px; text-align: center; }
+        .status-badge { background: #25D366; color: black; padding: 10px; border-radius: 5px; margin-bottom: 20px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
+    <div class="branding">M.M.Consultant</div>
     <h1>🏭 Factory Downtime Tracker</h1>
     
     <div class="status-badge">
@@ -43,11 +46,10 @@
     </div>
 
     <script>
-        // Machine data with hourly costs (display names must match those from server)
         const machines = [
-            { id: 1, displayName: "CNC Machine", status: "running", cause: null, hourlyCost: 8000 },
-            { id: 2, displayName: "Lathe Machine", status: "running", cause: null, hourlyCost: 6000 },
-            { id: 3, displayName: "Grinder", status: "running", cause: null, hourlyCost: 4000 }
+            { id: 1, displayName: "CNC Machine", status: "running", cause: null, hourlyCost: 8000, reportedAt: null },
+            { id: 2, displayName: "Lathe Machine", status: "running", cause: null, hourlyCost: 6000, reportedAt: null },
+            { id: 3, displayName: "Grinder", status: "running", cause: null, hourlyCost: 4000, reportedAt: null }
         ];
         
         function calculateTotalLoss() {
@@ -69,17 +71,20 @@
                 const statusClass = m.status;
                 const statusIcon = m.status === 'running' ? '🟢' : '🔴';
                 const statusText = m.status === 'running' ? 'RUNNING' : 'STOPPED';
-                let causeHtml = '';
-                let lossHtml = '';
+                let causeHtml = '', lossHtml = '', timeHtml = '';
                 if (m.status === 'stopped') {
                     causeHtml = `<div class="cause">⚠️ Cause: ${m.cause}</div>`;
                     lossHtml = `<div class="loss-small">💰 Loss: ₹${m.hourlyCost.toLocaleString()}/hour</div>`;
+                    if (m.reportedAt) {
+                        timeHtml = `<div class="timestamp">🕒 Reported at: ${m.reportedAt}</div>`;
+                    }
                 }
                 html += `
                     <div class="machine ${statusClass}">
                         <div><strong>${m.displayName}</strong></div>
                         <div class="status">${statusIcon} ${statusText}</div>
                         ${causeHtml}
+                        ${timeHtml}
                         ${lossHtml}
                     </div>
                 `;
@@ -90,10 +95,10 @@
         function resetMachines() {
             fetch('/reset')
                 .then(() => {
-                    // Reset local machine status
                     machines.forEach(m => {
                         m.status = "running";
                         m.cause = null;
+                        m.reportedAt = null;
                     });
                     updateDashboard();
                 })
@@ -105,18 +110,17 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.events && data.events.length > 0) {
-                        // Reset all machines to running first
                         machines.forEach(m => {
                             m.status = "running";
                             m.cause = null;
+                            m.reportedAt = null;
                         });
-                        // Apply events (latest events may have multiple for same machine; last one wins)
                         data.events.forEach(event => {
-                            const machineName = event.machine;
-                            const machine = machines.find(m => m.displayName === machineName);
+                            const machine = machines.find(m => m.displayName === event.machine);
                             if (machine) {
                                 machine.status = "stopped";
                                 machine.cause = event.cause;
+                                machine.reportedAt = event.timestamp;
                             }
                         });
                         updateDashboard();
@@ -125,11 +129,8 @@
                 .catch(err => console.log("Server error:", err));
         }
         
-        // Initial load
         updateDashboard();
-        // Auto-refresh every 3 seconds (reliable, instant)
         setInterval(loadDowntimeEvents, 3000);
-        // Also load immediately
         loadDowntimeEvents();
     </script>
 </body>

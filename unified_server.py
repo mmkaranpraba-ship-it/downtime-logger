@@ -1,10 +1,17 @@
 from flask import Flask, send_file, request, jsonify
 import re
+from datetime import datetime, timezone, timedelta
 
 app = Flask(__name__)
 
-# In-memory storage (fast, reliable)
-downtime_events = []  # list of {"machine": "CNC Machine", "cause": "power failure"}
+# In-memory storage
+downtime_events = []  # each: {"machine": "CNC Machine", "cause": "...", "timestamp": "2025-06-05 06:30:00 PM"}
+
+# IST timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def get_ist_timestamp():
+    return datetime.now(IST).strftime("%Y-%m-%d %I:%M:%S %p")
 
 # Mapping from spoken names to display names
 NAME_MAP = {
@@ -26,13 +33,11 @@ def extract_downtime_info(text):
     text_lower = text.lower()
     result = {"machine": None, "cause": "unknown"}
     
-    # Find machine name (priority: named machines over numbers)
     for key, display_name in NAME_MAP.items():
         if key in text_lower:
             result["machine"] = display_name
             break
     
-    # Find cause (simple keyword matching)
     if "bearing" in text_lower:
         result["cause"] = "bearing failure"
     elif "motor" in text_lower:
@@ -50,8 +55,13 @@ def extract_downtime_info(text):
 def dashboard():
     return send_file('dashboard.html')
 
+@app.route('/shopfloor')
+def shopfloor():
+    return send_file('voice_recorder.html')
+
+# Keep old /worker for backward compatibility (optional)
 @app.route('/worker')
-def worker():
+def worker_redirect():
     return send_file('voice_recorder.html')
 
 @app.route('/whatsapp', methods=['POST'])
@@ -60,9 +70,12 @@ def whatsapp_webhook():
     extracted = extract_downtime_info(incoming_msg)
     
     if extracted["machine"]:
-        # Add to in-memory list (avoid duplicates for same machine? keep as is)
-        downtime_events.append({"machine": extracted["machine"], "cause": extracted["cause"]})
-        return f"✅ {extracted['machine']} downtime logged. Cause: {extracted['cause']}"
+        downtime_events.append({
+            "machine": extracted["machine"],
+            "cause": extracted["cause"],
+            "timestamp": get_ist_timestamp()
+        })
+        return f"✅ {extracted['machine']} downtime logged at {get_ist_timestamp()}. Cause: {extracted['cause']}"
     else:
         return "❌ Please say machine name or number, e.g., 'CNC machine stopped, power failure'"
 
